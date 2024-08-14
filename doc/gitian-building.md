@@ -1,7 +1,7 @@
 Gitian building
 ================
 
-*Setup instructions for a gitian build of Dobbscoin using a Debian VM or physical system.*
+*Setup instructions for a gitian build of Dobbscoin using an Ubuntu VM or physical system.*
 
 Gitian is the deterministic build process that is used to build the Dobbscoin
 Core executables. It provides a way to be reasonably sure that the
@@ -20,11 +20,15 @@ VM image to avoid 'contaminating' the build.
 Table of Contents
 ------------------
 
+- [Obtaining Ubuntu Server 12.04.5](#obtaining-ubuntu-server-12045)
 - [Create a new VirtualBox VM](#create-a-new-virtualbox-vm)
+- [Installing Ubuntu](#installing-ubuntu)
 - [Connecting to the VM](#connecting-to-the-vm)
-- [Setting up Debian for gitian building](#setting-up-debian-for-gitian-building)
+- [Restoring the package management system](#restoring-the-package-mangagement-system)
+- [Setting up Ubuntu for gitian building](#setting-up-ubuntu-for-gitian-building)
 - [Installing gitian](#installing-gitian)
 - [Setting up gitian images](#setting-up-gitian-images)
+- [Sanity check](#sanity-check)
 - [Getting and building the inputs](#getting-and-building-the-inputs)
 - [Building Dobbscoin](#building-dobbscoin)
 - [Building an alternative repository](#building-an-alternative-repository)
@@ -37,7 +41,6 @@ Preparing the Gitian builder host
 The first step is to prepare the host environment that will be used to perform the Gitian builds.
 This guide explains how to set up the environment, and how to start the builds.
 
-Debian Linux was chosen as the host distribution because it has a lightweight install (in contrast to Ubuntu) and is readily available.
 Any kind of virtualization can be used, for example:
 - [VirtualBox](https://www.virtualbox.org/), covered by this guide
 - [KVM](http://www.linux-kvm.org/page/Main_Page)
@@ -45,13 +48,27 @@ Any kind of virtualization can be used, for example:
 
 You can also install on actual hardware instead of using virtualization.
 
+In this documentation Windows 11 was used with VirtualBox 7.0 to do a Gitian Build of Dobbscoin.  I have verified identical hashsums when using Slackware 15.0 with VirtualBox 6.1.  This process can be somewhat time consuming and goes much faster if you use machines with higher grade hardware.
+
+Obtaining Ubuntu Server 12.04.5
+-------------------------------
+Gitian Building has become by and large replaced with other systems.  That said "BOB" still uses Gitain Building (for now).
+
+Get the [ubuntu-12.04.5-server-amd64.iso](https://old-releases.ubuntu.com/releases/12.04/ubuntu-12.04.5-server-amd64.iso).
+This DVD image can be validated using a SHA256 hashing tool, for example on
+Unixy OSes by entering the following in a terminal:
+
+    echo "af224223de99e2a730b67d7785b657f549be0d63221188e105445f75fb8305c9  ubuntu-12.04.5-server-amd64.iso" | sha256sum -c
+    # (must return OK)
+
+
 Create a new VirtualBox VM
 ---------------------------
 In the VirtualBox GUI click "Create" and choose the following parameters in the wizard:
 
 ![](gitian-building/create_vm_page1.png)
 
-- Type: Linux, Debian (64 bit)
+- Make sure to check 'Skip Unattended Installation' if you are using VirtualBox 7.0
 
 ![](gitian-building/create_vm_memsize.png)
 
@@ -61,25 +78,10 @@ In the VirtualBox GUI click "Create" and choose the following parameters in the 
 
 - Hard Drive: Create a virtual hard drive now
     
-![](gitian-building/create_vm_hard_drive_file_type.png)
-
-- Hard Drive file type: Use the default, VDI (VirtualBox Disk Image) 
-
-![](gitian-building/create_vm_storage_physical_hard_drive.png)
-    
-- Storage on Physical hard drive: Dynamically Allocated 
-    
 ![](gitian-building/create_vm_file_location_size.png)
 
 - Disk size: at least 40GB; as low as 20GB *may* be possible, but better to err on the safe side 
-- Push the `Create` button
-
-Get the [Debian 7.4 net installer](http://ftp.at.debian.org/debian-jigdo/current/amd64/iso-cd/debian-7.4.0-amd64-netinst.iso) (a more recent minor version should also work, see also [Debian Network installation](https://www.debian.org/CD/netinst/)).
-This DVD image can be validated using a SHA256 hashing tool, for example on
-Unixy OSes by entering the following in a terminal:
-
-    echo "b712a141bc60269db217d3b3e456179bd6b181645f90e4aac9c42ed63de492e9  debian-7.4.0-amd64-netinst.iso" | sha256sum -c
-    # (must return OK)
+- Push the `Finish` button
 
 After creating the VM, we need to configure it. 
 
@@ -102,20 +104,18 @@ After creating the VM, we need to configure it.
 
 - Click `Ok` twice to save.
 
-Then start the VM. On the first launch you will be asked for a CD or DVD image. Choose the downloaded iso.
+Start the VM.
 
-![](gitian-building/select_startup_disk.png)
+Installing Ubuntu
+-----------------
 
-Installing Debian
-------------------
+In this section it will be explained how to install Ubuntu Server 12.04.5 on the newly created VM.
 
-In this section it will be explained how to install Debian on the newly created VM.
-
-- Choose the non-graphical installer.  We do not need the graphical environment, it will only increase installation time and disk usage.
+- Choose `Install Ubuntu Server`
 
 ![](gitian-building/debian_install_1_boot_menu.png)
 
-**Note**: Navigation in the Debian installer: To keep a setting at the default
+**Note**: Navigation in the Ubuntu installer: To keep a setting at the default
 and proceed, just press `Enter`. To select a different button, press `Tab`.
 
 - Choose locale and keyboard settings (doesn't matter, you can just go with the defaults or select your own information)
@@ -126,16 +126,11 @@ and proceed, just press `Enter`. To select a different button, press `Tab`.
 
 - The VM will detect network settings using DHCP, this should all proceed automatically
 - Configure the network: 
-  - System name `debian`.
-  - Leave domain name empty.
+  - Hostname `ubuntu`.
 
 ![](gitian-building/debian_install_5_configure_the_network.png)
 
-- Choose a root password and enter it twice (remember it for later) 
-
-![](gitian-building/debian_install_6a_set_up_root_password.png)
-
-- Name the new user `debian` (the full name doesn't matter, you can leave it empty) 
+- Name the new user `ubuntu` (the full name doesn't matter, you can leave it empty) 
 
 ![](gitian-building/debian_install_7_set_up_user_fullname.png)
 ![](gitian-building/debian_install_8_set_up_username.png)
@@ -144,55 +139,35 @@ and proceed, just press `Enter`. To select a different button, press `Tab`.
 
 ![](gitian-building/debian_install_9_user_password.png)
 
-- The installer will set up the clock using a time server, this process should be automatic
-- Set up the clock: choose a time zone (depends on the locale settings that you picked earlier; specifics don't matter)  
-
-![](gitian-building/debian_install_10_configure_clock.png)
-
-- Disk setup
-  - Partitioning method: Guided - Use the entire disk 
-  
-![](gitian-building/debian_install_11_partition_disks.png)
-
-  - Select disk to partition: SCSI1 (0,0,0) 
+  - Select disk to partition 
 
 ![](gitian-building/debian_install_12_choose_disk.png)
 
-  - Partitioning scheme: All files in one partition 
+  - Partitioning scheme: use entire disk
   
 ![](gitian-building/debian_install_13_partition_scheme.png)
 
   - Finish partitioning and write changes to disk -> *Yes* (`Tab`, `Enter` to select the `Yes` button)
 
 ![](gitian-building/debian_install_14_finish.png) 
-![](gitian-building/debian_install_15_write_changes.png)
-
-- The base system will be installed, this will take a minute or so
-- Choose a mirror (any will do) 
-
-![](gitian-building/debian_install_16_choose_a_mirror.png)
 
 - Enter proxy information (unless you are on an intranet, you can leave this empty)
 
 ![](gitian-building/debian_install_18_proxy_settings.png)
 
-- Wait a bit while 'Select and install software' runs
-- Participate in popularity contest -> *No*
-- Choose software to install. We need just the base system. 
+- Make sure only `OpenSSH server` is checked then select `Continue`
 
 ![](gitian-building/debian_install_19_software_selection.png)
 
-- Make sure only 'SSH server' and 'Standard System Utilities' are checked
-- Uncheck 'Debian Desktop Environment' and 'Print Server'
+- Install the GRUB boot loader to the master boot record? -> *Yes*
 
 ![](gitian-building/debian_install_20_install_grub.png)
 
-- Install the GRUB boot loader to the master boot record? -> Yes 
+ - Installation Complete -> *Continue*
 
 ![](gitian-building/debian_install_21_finish_installation.png)
 
-- Installation Complete -> *Continue*
-- After installation, the VM will reboot and you will have a working Debian VM. Congratulations!
+- After installation, the VM will reboot and you will have a working Ubuntu VM. Congratulations!
 
 Connecting to the VM
 ----------------------
@@ -201,69 +176,77 @@ After the VM has booted you can connect to it using SSH, and files can be copied
 Connect to `localhost`, port `22222` (or the port configured when installing the VM).
 On Windows you can use putty[1] and WinSCP[2].
 
-For example to connect as `root` from a Linux command prompt use
+For example to connect as `ubuntu` from a Linux command prompt use
 
-    $ ssh root@localhost -p 22222
+    $ ssh ubuntu@localhost -p 22222
     The authenticity of host '[localhost]:22222 ([127.0.0.1]:22222)' can't be established.
     ECDSA key fingerprint is 8e:71:f9:5b:62:46:de:44:01:da:fb:5f:34:b5:f2:18.
     Are you sure you want to continue connecting (yes/no)? yes
     Warning: Permanently added '[localhost]:22222' (ECDSA) to the list of known hosts.
-    root@localhost's password: (enter root password configured during install)
-    Linux debian 3.2.0-4-amd64 #1 SMP Debian 3.2.54-2 x86_64
-    root@debian:~#
-
-Replace `root` with `debian` to log in as user.
+    ubuntu@localhost's password: (enter ubuntu user password configured during install)
+    ubuntu@ubuntu:~$
 
 [1] http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html
 [2] http://winscp.net/eng/index.php
 
-Setting up Debian for gitian building
---------------------------------------
+Restoring the package mangagement system
+----------------------------------------
 
-In this section we will be setting up the Debian installation for Gitian building.
+While not largely publicized it is (still) possible to maintain the apt package management system on "old-releases" of Ubuntu that are no longer supported by default.
 
-First we need to log in as `root` to set up dependencies and make sure that our
-user can use the sudo command. Type/paste the following in the terminal:
+In order to do this execute the following commands
 
 ```bash
-apt-get install git ruby sudo apt-cacher-ng qemu-utils debootstrap lxc python-cheetah parted kpartx bridge-utils
-adduser debian sudo
+sudo sed -i 's/us.archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list       
+sudo sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+sudo apt-get update
+sudo apt-get upgrade
+sudo reboot     
 ```
 
-When you get a colorful screen with a question about the 'LXC directory', just
-go with the default (`/var/lib/lxc`).
+After the upgrades have been successfully installed and the machine reboots connect again via SSH
+
+Setting up Ubuntu for gitian building
+--------------------------------------
+
+In this section we will be setting up the Ubuntu installation for Gitian building.
+
+First we need to install some basic packages for the gitian build system to work
+
+```bash
+sudo apt-get install git ruby sudo apt-cacher-ng qemu-utils debootstrap lxc python-cheetah parted kpartx bridge-utils
+```
 
 Then set up LXC and the rest with the following, which is a complex jumble of settings and workarounds:
 
 ```bash
-# the version of lxc-start in Debian 7.4 needs to run as root, so make sure
-# that the build script can exectute it without providing a password
+# system configuration
+sudo su       # grants root sheel
 echo "%sudo ALL=NOPASSWD: /usr/bin/lxc-start" > /etc/sudoers.d/gitian-lxc
+chmod 0440 /etc/sudoers.d/gitian-lxc                   
 # add cgroup for LXC
 echo "cgroup  /sys/fs/cgroup  cgroup  defaults  0   0" >> /etc/fstab
-# make /etc/rc.local script that sets up bridge between guest and host
-echo '#!/bin/sh -e' > /etc/rc.local
-echo 'brctl addbr br0' >> /etc/rc.local
-echo 'ifconfig br0 10.0.3.2/24 up' >> /etc/rc.local
-echo 'exit 0' >> /etc/rc.local
-# make sure that USE_LXC is always set when logging in as debian,
-# and configure LXC IP addresses
-echo 'export USE_LXC=1' >> /home/debian/.profile
-echo 'export GITIAN_HOST_IP=10.0.3.2' >> /home/debian/.profile
-echo 'export LXC_GUEST_IP=10.0.3.5' >> /home/debian/.profile
-reboot
+exit          # exit root shell
 ```
 
+```bash
+# profile configuration (run as ubuntu user)
+echo 'export USE_LXC=1' >> /home/ubuntu/.profile
+echo 'export LXC_BRIDGE=lxcbr0' >> /home/ubuntu/.profile
+echo 'export GITIAN_HOST_IP=10.0.3.1' >> /home/ubuntu/.profile
+echo 'export LXC_GUEST_IP=10.0.3.5' >> /home/ubuntu/.profile
+sudo reboot
+```
 At the end the VM is rebooted to make sure that the changes take effect. The steps in this
 section need only to be performed once.
 
 Installing gitian
 ------------------
 
-Re-login as the user `debian` that was created during installation.
+Re-login as the user `ubuntu` that was created during installation.
 The rest of the steps in this guide will be performed as that user.
 
-There is no `python-vm-builder` package in Debian, so we need to install it from source ourselves,
+There is no `python-vm-builder` package in Ubuntu, so we need to install it from source ourselves,
 
 ```bash
 wget http://archive.ubuntu.com/ubuntu/pool/universe/v/vm-builder/vm-builder_0.12.4+bzr489.orig.tar.gz
@@ -271,20 +254,29 @@ echo "ec12e0070a007989561bfee5862c89a32c301992dd2771c4d5078ef1b3014f03  vm-build
 # (verification -- must return OK)
 tar -zxvf vm-builder_0.12.4+bzr489.orig.tar.gz
 cd vm-builder-0.12.4+bzr489
+find . -type f -name "*py" -exec sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' {} \;
+find . -type f -name "*py" -exec sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' {} \;
 sudo python setup.py install
 cd ..
 ```
 
-**Note**: When sudo asks for a password, enter the password for the user *debian* not for *root*.
+**Note**: When sudo asks for a password, enter the password for the user *ubuntu*
 
-Clone the git repositories for dobbscoin and gitian and then checkout the dobbscoin version that you want to build.
+Clone the git repository for gitian-builder and configure to work on current system
 
 ```bash
 git clone https://github.com/devrandom/gitian-builder.git
-git clone https://github.com/dobbscoin/dobbscoin-source
-cd dobbscoin
-git checkout v${VERSION}
+cd gitian-builder
+git checkout tags/0.2
+find . -type f -exec sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' {} \;
+find . -type f -exec sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' {} \;
 cd ..
+```
+
+Clone the git repository for dobbscoin-source
+
+```bash
+git clone https://github.com/JimGilmore/dobbsoin-source dobbscoin
 ```
 
 Setting up gitian images
@@ -296,7 +288,7 @@ These images will be copied and used every time that a build is started to
 make sure that the build is deterministic.
 Creating the images will take a while, but only has to be done once.
 
-Execute the following as user `debian`:
+Execute the following as user `ubuntu`:
 
 ```bash
 cd gitian-builder
@@ -304,8 +296,53 @@ bin/make-base-vm --lxc --arch amd64 --suite precise
 ```
 
 There will be a lot of warnings printed during build of the images. These can be ignored.
+This will take a while to finish.  If it is successful you can go straight to 'Sanity check'
+and verify if you are able to get identical hashsums.  The final executables are in the build/out directory.
 
-**Note**: When sudo asks for a password, enter the password for the user *debian* not for *root*.
+**Note**: When sudo asks for a password, enter the password for the user *ubuntu*
+
+Sanity check
+------------
+
+To actually build the binaries for different platforms and architectures enter the following commands
+
+```bash
+# the packages have to be manually downloaded
+sudo apt-get install make
+mkdir -p inputs
+make -C ../dobbscoin/depends download SOURCES_PATH=`pwd`/cache/common
+# If building for OSX will have to follow the steps listed in release-process.md and move Mac0SX10.7.tar.gz into the inputs directory
+# before running the /bin/gbuild script for gitian-osx.yml
+
+# now the process to actually start building
+
+export SIGNER=JG
+export VERSION=0.10.2
+
+./bin/gbuild --commit dobbscoin=v${VERSION} ../dobbscoin/contrib/gitian-descriptors/gitian-linux.yml
+
+#b30a11ccd3f9ce75301adc113a92bbbc2e20eb0402e20cc81ffab42fe4ed3370  dobbscoin-0.10.2-linux32.tar.gz
+#cef96f2d6b88fac10cf6aca02645c809423ba80a71984c68133d5299ac5b66b0  dobbscoin-0.10.2-linux64.tar.gz
+#f4559b64c413ab58d8e7dda0709b35f374f7a1deedfbce96da4b15c7952a1eea  src/dobbscoin-0.10.2.tar.gz
+#4bb00c42167714c436e3dd210c567e09486a5bd3f7ad6d8ed97d72ea6e389412  dobbscoin-linux-0.10-res.yml
+
+./bin/gbuild --commit dobbscoin=v${VERSION} ../dobbscoin/contrib/gitian-descriptors/gitian-win.yml
+
+#4777e1db588d9ef0571ae82e9f51c404c23889992d5bcc07d956d823673c40ca  dobbscoin-0.10.2-win32-setup.exe
+#241341303d34949871384d30f09af8963d5cde272dfc9d9915ba2d0b82da7247  dobbscoin-0.10.2-win32.zip
+#3b210d58b5f926bf109f894f73b66c63c0f7b2f846e38cedc34daec8efcf8733  dobbscoin-0.10.2-win64-setup.exe
+#4452a0c8588319bcc2044dccc6252c070fbc96d8e11dd46fa9625389122e1356  dobbscoin-0.10.2-win64.zip
+#f4559b64c413ab58d8e7dda0709b35f374f7a1deedfbce96da4b15c7952a1eea  src/dobbscoin-0.10.2.tar.gz
+#25177615ef3468952a3a82a0451272bb6e3e61e183f3819e48d6bf528ae79e88  dobbscoin-win-0.10-res.yml
+
+./bin/gbuild --commit dobbscoin=v${VERSION} ../dobbscoin/contrib/gitian-descriptors/gitian-osx.yml
+
+#9c97b2f0699781df23c08dd86e31afae2e784079ca5d5735060cd93bd2b2472a  dobbscoin-0.10.2-osx-unsigned.dmg
+#e8e6d9d4400ae26001ccd894e5c5d90da413e0e74c97fe51726a32d0a88ef4f7  dobbscoin-0.10.2-osx-unsigned.tar.gz
+#c1f3ff29cd84d1db9cc14242b57034ecc439ab26a7f3320729d84cc7a4730b8a  dobbscoin-0.10.2-osx64.tar.gz
+#f4559b64c413ab58d8e7dda0709b35f374f7a1deedfbce96da4b15c7952a1eea  src/dobbscoin-0.10.2.tar.gz
+#32216aeff6f18f83c100d766db3d5e7de225e73012404b7ae9351c970d7eddf1  dobbscoin-osx-0.10-res.yml
+```
 
 Getting and building the inputs
 --------------------------------
@@ -332,12 +369,12 @@ tail -f var/build.log
 
 Output from `gbuild` will look something like
 
-    Initialized empty Git repository in /home/debian/gitian-builder/inputs/dobbscoin/.git/
+    Initialized empty Git repository in /home/ubuntu/gitian-builder/inputs/dobbscoin/.git/
     remote: Reusing existing pack: 35606, done.
     remote: Total 35606 (delta 0), reused 0 (delta 0)
     Receiving objects: 100% (35606/35606), 26.52 MiB | 4.28 MiB/s, done.
     Resolving deltas: 100% (25724/25724), done.
-    From https://github.com/dobbscoin/dobbscoin-source
+    From https://github.com/JimGilmore/dobbscoin-source
     ... (new tags, new branch etc)
     --- Building for precise x86_64 ---
     Stopping target if it is up
@@ -353,6 +390,7 @@ Output from `gbuild` will look something like
     Creating build script (var/build-script)
     lxc-start: Connection refused - inotify event with no name (mask 32768)
     Running build script (log in var/build.log)
+```
 
 Building an alternative repository
 -----------------------------------
