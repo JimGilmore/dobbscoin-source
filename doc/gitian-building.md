@@ -20,6 +20,7 @@ VM image to avoid 'contaminating' the build.
 Table of Contents
 ------------------
 
+- [Preparing the Gitian build host](#preparing-the-gitian-builder-host)
 - [Obtaining Ubuntu Server 12.04.5](#obtaining-ubuntu-server-12045)
 - [Create a new VirtualBox VM](#create-a-new-virtualbox-vm)
 - [Installing Ubuntu](#installing-ubuntu)
@@ -48,7 +49,7 @@ Any kind of virtualization can be used, for example:
 
 You can also install on actual hardware instead of using virtualization.
 
-In this documentation Windows 11 was used with VirtualBox 7.0 to do a Gitian Build of Dobbscoin.  I have verified identical hashsums when using Slackware 15.0 with VirtualBox 6.1.  This process can be somewhat time consuming and goes much faster if you use machines with higher grade hardware.
+In this documentation Windows 11 was used with VirtualBox 7.0 to do a Gitian Build of Dobbscoin.  I have verified identical hashsums when using Slackware 15.0 with VirtualBox 6.1.  This process can be somewhat time consuming and goes much faster if you use machines with high performance hardware.
 
 Obtaining Ubuntu Server 12.04.5
 -------------------------------
@@ -61,14 +62,17 @@ Unixy OSes by entering the following in a terminal:
     echo "af224223de99e2a730b67d7785b657f549be0d63221188e105445f75fb8305c9  ubuntu-12.04.5-server-amd64.iso" | sha256sum -c
     # (must return OK)
 
+We will be using this as the ISO Image for the Virtual Machine.
 
 Create a new VirtualBox VM
 ---------------------------
-In the VirtualBox GUI click "Create" and choose the following parameters in the wizard:
+In the VirtualBox GUI click *Machine* --> *New* and choose the following parameters in the wizard:
 
 ![](gitian-building/create_vm_page1.png)
 
-- Make sure to check 'Skip Unattended Installation' if you are using VirtualBox 7.0
+- Select `ubuntu-12.04.5-server-amd64.iso` for the *ISO Image* 
+- Make sure to check *Skip Unattended Installation* if you are using VirtualBox 7.0
+- Click *Next*
 
 ![](gitian-building/create_vm_memsize.png)
 
@@ -155,6 +159,7 @@ and proceed, just press `Enter`. To select a different button, press `Tab`.
 
 ![](gitian-building/debian_install_18_proxy_settings.png)
 
+- If prompted about automatic updates be sure to check *no automatic updates*
 - Make sure only `OpenSSH server` is checked then select `Continue`
 
 ![](gitian-building/debian_install_19_software_selection.png)
@@ -199,12 +204,9 @@ In order to do this execute the following commands
 ```bash
 sudo sed -i 's/us.archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list       
 sudo sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
-sudo apt-get update
-sudo apt-get upgrade
-sudo reboot     
+sudo apt-get --yes update
+sudo apt-get --yes upgrade  
 ```
-
-After the upgrades have been successfully installed and the machine reboots connect again via SSH
 
 Setting up Ubuntu for gitian building
 --------------------------------------
@@ -214,7 +216,8 @@ In this section we will be setting up the Ubuntu installation for Gitian buildin
 First we need to install some basic packages for the gitian build system to work
 
 ```bash
-sudo apt-get install git ruby sudo apt-cacher-ng qemu-utils debootstrap lxc python-cheetah parted kpartx bridge-utils
+sudo apt-get --yes install git ruby sudo apt-cacher-ng qemu-utils debootstrap lxc python-cheetah parted kpartx bridge-utils make
+
 ```
 
 Then set up LXC and the rest with the following, which is a complex jumble of settings and workarounds:
@@ -227,6 +230,7 @@ chmod 0440 /etc/sudoers.d/gitian-lxc
 # add cgroup for LXC
 echo "cgroup  /sys/fs/cgroup  cgroup  defaults  0   0" >> /etc/fstab
 exit          # exit root shell
+
 ```
 
 ```bash
@@ -236,6 +240,7 @@ echo 'export LXC_BRIDGE=lxcbr0' >> /home/ubuntu/.profile
 echo 'export GITIAN_HOST_IP=10.0.3.1' >> /home/ubuntu/.profile
 echo 'export LXC_GUEST_IP=10.0.3.5' >> /home/ubuntu/.profile
 sudo reboot
+
 ```
 At the end the VM is rebooted to make sure that the changes take effect. The steps in this
 section need only to be performed once.
@@ -249,6 +254,7 @@ The rest of the steps in this guide will be performed as that user.
 There is no `python-vm-builder` package in Ubuntu, so we need to install it from source ourselves,
 
 ```bash
+cd $HOME
 wget http://archive.ubuntu.com/ubuntu/pool/universe/v/vm-builder/vm-builder_0.12.4+bzr489.orig.tar.gz
 echo "ec12e0070a007989561bfee5862c89a32c301992dd2771c4d5078ef1b3014f03  vm-builder_0.12.4+bzr489.orig.tar.gz" | sha256sum -c
 # (verification -- must return OK)
@@ -257,7 +263,7 @@ cd vm-builder-0.12.4+bzr489
 find . -type f -name "*py" -exec sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' {} \;
 find . -type f -name "*py" -exec sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' {} \;
 sudo python setup.py install
-cd ..
+
 ```
 
 **Note**: When sudo asks for a password, enter the password for the user *ubuntu*
@@ -265,18 +271,21 @@ cd ..
 Clone the git repository for gitian-builder and configure to work on current system
 
 ```bash
+cd $HOME
 git clone https://github.com/devrandom/gitian-builder.git
 cd gitian-builder
 git checkout tags/0.2
 find . -type f -exec sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' {} \;
 find . -type f -exec sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' {} \;
-cd ..
+
 ```
 
 Clone the git repository for dobbscoin-source
 
 ```bash
-git clone https://github.com/JimGilmore/dobbsoin-source dobbscoin
+cd $HOME
+git clone https://github.com/JimGilmore/dobbscoin-source dobbscoin
+
 ```
 
 Setting up gitian images
@@ -308,14 +317,13 @@ To actually build the binaries for different platforms and architectures enter t
 
 ```bash
 # the packages have to be manually downloaded
-sudo apt-get install make
 mkdir -p inputs
 make -C ../dobbscoin/depends download SOURCES_PATH=`pwd`/cache/common
-# If building for OSX will have to follow the steps listed in release-process.md and move Mac0SX10.7.tar.gz into the inputs directory
-# before running the /bin/gbuild script for gitian-osx.yml
+# If building for OSX will have to follow the steps listed in release-process.md and move
+# Mac0SX10.7.tar.gz into the inputs directory before running the /bin/gbuild script for gitian-osx.yml
+# OSX updates are bottleneck in prcoess (see
 
 # now the process to actually start building
-
 export SIGNER=JG
 export VERSION=0.10.2
 
