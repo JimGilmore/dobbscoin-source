@@ -313,18 +313,19 @@ and verify if you are able to get identical hashsums.  The final executables are
 Sanity check
 ------------
 
-To actually build the binaries for different platforms and architectures enter the following commands
+To actually build the binaries for different platforms and architectures enter the following commands.
+All commands below are run from the `${HOME}/gitian-builder` directory.
 
 ```bash
-# the packages have to be manually downloaded
 mkdir -p inputs
 make -C ../dobbscoin/depends download SOURCES_PATH=`pwd`/cache/common
 # If building for OSX will have to follow the steps listed in release-process.md and move
 # Mac0SX10.7.tar.gz into the inputs directory before running the /bin/gbuild script for gitian-osx.yml
-# OSX updates are bottleneck in prcoess (see
+# OSX cross-compile is bottleneck in process that keeps the gitian build system stuck in Ubuntu 12.04
+# Has to do with the toolchain4 package which has become a legacy cross compile technique for OSX binaries
 
 # now the process to actually start building
-export SIGNER=JG
+export SIGNER=JG  # use your name for SIGNER
 export VERSION=0.10.2
 
 ./bin/gbuild --commit dobbscoin=v${VERSION} ../dobbscoin/contrib/gitian-descriptors/gitian-linux.yml
@@ -351,6 +352,7 @@ export VERSION=0.10.2
 #f4559b64c413ab58d8e7dda0709b35f374f7a1deedfbce96da4b15c7952a1eea  src/dobbscoin-0.10.2.tar.gz
 #32216aeff6f18f83c100d766db3d5e7de225e73012404b7ae9351c970d7eddf1  dobbscoin-osx-0.10-res.yml
 ```
+Output binaries are in the `${HOME}/gitian-builder/build/out` directory and should be grabbed each time after running *./bin/gbuild*
 
 Getting and building the inputs
 --------------------------------
